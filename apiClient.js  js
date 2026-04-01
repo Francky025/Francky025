@@ -1,0 +1,57 @@
+import axios from 'axios';
+import StatusManager from './statusManager';
+import APIErrorHandler from './apiErrorHandler';
+
+class APIClient {
+  constructor(baseURL = process.env.REACT_APP_API_URL) {
+    this.client = axios.create({ baseURL });
+    this.statusManager = new StatusManager();
+    this.errorHandler = new APIErrorHandler();
+
+    this.setupInterceptors();
+  }
+
+  setupInterceptors() {
+    this.client.interceptors.request.use(
+      config => {
+        this.statusManager.transition('processing');
+        return config;
+      },
+      error => {
+        this.errorHandler.handle(error);
+        this.statusManager.transition('error');
+        return Promise.reject(error);
+      }
+    );
+
+    this.client.interceptors.response.use(
+      response => {
+        this.statusManager.transition('success');
+        return response.data;
+      },
+      error => {
+        this.errorHandler.handle(error);
+        this.statusManager.transition('error');
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  async get(endpoint, config = {}) {
+    return this.client.get(endpoint, config);
+  }
+
+  async post(endpoint, data, config = {}) {
+    return this.client.post(endpoint, data, config);
+  }
+
+  async put(endpoint, data, config = {}) {
+    return this.client.put(endpoint, data, config);
+  }
+
+  async delete(endpoint, config = {}) {
+    return this.client.delete(endpoint, config);
+  }
+}
+
+export default APIClient;
